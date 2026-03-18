@@ -1,3 +1,21 @@
+"""
+FastAPI application entry point for the pHera BFF service.
+
+This module initializes the API application, configures CORS and registers
+routers depending on the deployment mode.
+
+Supported modes:
+
+- beta:
+    Lightweight proxy mode used for Beta integration.
+    Only health check and BFF endpoints are exposed.
+    No persistence or authenticated MVP-only routes are enabled.
+
+- mvp:
+    Full application mode with authentication and persistence enabled.
+    Additional routes such as scans, history and trends are available.
+"""
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,11 +43,12 @@ if CORS_ORIGINS:
         allow_headers=["*"],
     )
 
-# Always available
+# Always expose the minimal endpoints required for service availability
+# and proxy-based Beta integration.
 app.include_router(health_router)
 app.include_router(bff_router)
 
-# MVP-only features
+# Enable persistence and authenticated routes only in MVP mode.
 if DEPLOYMENT_MODE == "mvp":
     Base.metadata.create_all(bind=engine)
 
@@ -40,4 +59,10 @@ if DEPLOYMENT_MODE == "mvp":
 
     @app.get("/api/me", tags=["auth"])
     def api_me(user: models.User = Depends(get_current_user)):
+        """
+        Return information about the currently authenticated user.
+
+        This endpoint is available only in MVP mode and is used to verify
+        that the authentication flow is working correctly.
+        """
         return {"id": user.id, "sub": user.sub, "email": user.email}

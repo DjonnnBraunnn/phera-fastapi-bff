@@ -1,7 +1,37 @@
+"""
+Application configuration module.
+
+This module centralizes all environment-based settings used by the service.
+
+Key concepts:
+
+- Environment variables are used to configure the service behavior.
+- Defaults are provided where possible for local development.
+
+Important settings:
+
+- DEPLOYMENT_MODE:
+    Controls how the service behaves:
+    - "beta" → proxy-only mode (no authentication, no persistence)
+    - "mvp" → full mode (authentication + database persistence)
+
+- RAG_BASE_URL:
+    Base URL of the external RAG backend service.
+
+- RAG_API_KEY:
+    API key used in MVP mode for authenticated communication with RAG.
+
+- ZITADEL_*:
+    Configuration for OIDC authentication (used in MVP mode).
+"""
+
 import os
 
 
 def get_env(name: str, default: str | None = None) -> str | None:
+    """
+    Helper function to read environment variables with an optional default.
+    """
     return os.getenv(name, default)
 
 
@@ -24,7 +54,7 @@ CORS_ORIGINS = (
     else []
 )
 
-# Deployment mode (beta or mvp)
+# Controls service behavior: "beta" (proxy-only) or "mvp" (full mode)
 DEPLOYMENT_MODE = (get_env("DEPLOYMENT_MODE", "beta") or "beta").strip().lower()
 
 # RAG backend configuration

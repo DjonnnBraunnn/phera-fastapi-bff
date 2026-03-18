@@ -2,15 +2,14 @@
 
 FastAPI-based **Backend-for-Frontend (BFF) microservice** used in the pHera architecture.
 
-This service acts as a dedicated integration layer between the application backend and the AI / RAG processing services.
+This service acts as a dedicated integration layer between the application backend and AI / RAG services.
 
-The microservice is designed to be reusable across multiple pHera projects, including:
+It is designed to support **two runtime modes**:
 
-- Project 1 (Beta)
-- Project 2 (MVP)
-- future pHera products
+- **Beta mode** → lightweight proxy (no auth, no persistence)
+- **MVP mode** → authenticated + persistence-enabled backend
 
-Keeping the AI integration logic in a separate service allows the platform to scale and evolve without coupling AI logic to the main backend.
+The same codebase can switch between these modes via configuration.
 
 ---
 
@@ -26,67 +25,74 @@ FastAPI BFF Service
 ↓  
 RAG / AI Backend  
 
-The FastAPI service acts as a gateway to the AI backend and handles:
+The BFF service is responsible for:
 
-- request forwarding
-- authentication validation
-- API key management
-- user context forwarding
+- forwarding requests to RAG
+- handling authentication (MVP mode)
+- attaching API keys
+- forwarding user context
+- isolating AI logic from the main backend
 
----
-
-# Current Scope
-
-The service currently provides the following endpoints:
-
-## Always available
-
-- `GET /health` — health check endpoint
-- `POST /api/analyze` — forwards analysis requests to the RAG backend
-
-## MVP-only routes
-
-- `POST /auth/dev-token` — local development JWT generator
-- `GET /api/me` — returns authenticated user information
-- `POST /scans` — creates a scan history item
-- `GET /history` — retrieves scan history
-- `GET /trends` — provides basic trend statistics
+This separation allows independent scaling and reuse across projects.
 
 ---
 
-# BFF Request Flow
+# Supported Modes
 
 ## Beta mode
 
-`Frontend / Node Backend → FastAPI BFF → RAG beta backend`
+`Frontend / Node Backend → BFF → RAG beta backend`
 
 Behavior:
 
+- no authentication
+- no database usage
 - no persistence
-- no user-specific storage
-- no auth headers sent to RAG
-- request body forwarded directly
+- acts as a pure proxy
+- request body is forwarded directly
+
+Used for fast integration and testing.
+
+---
 
 ## MVP mode
 
-`Frontend / Node Backend → FastAPI BFF → RAG backend`
+`Frontend / Node Backend → BFF → RAG backend`
 
 Behavior:
 
-- validates JWT on the BFF side
-- sends `X-API-Key` header to the RAG service
-- sends `X-User-Id` when an authenticated user exists
-- persistence routes are enabled
+- validates JWT (Zitadel)
+- attaches `X-API-Key`
+- attaches `X-User-Id` (if available)
+- enables persistence (PostgreSQL)
+- enables additional API routes
 
-The same codebase supports both modes through configuration.
+Used for production-ready flows.
+
+---
+
+# API Endpoints
+
+## Always available
+
+- `GET /health` — health check
+- `POST /api/analyze` — forward request to RAG backend
+
+## MVP-only endpoints
+
+- `POST /auth/dev-token` — local JWT generation
+- `GET /api/me` — current user info
+- `POST /scans` — create scan
+- `GET /history` — user history
+- `GET /trends` — aggregated stats
 
 ---
 
 # Environment Configuration
 
-Configuration values are defined in the `.env` file.
+Configuration is provided via `.env`.
 
-Important environment variables:
+Important variables:
 
 - `DATABASE_URL`
 - `ZITADEL_ISSUER`
@@ -97,36 +103,102 @@ Important environment variables:
 - `RAG_BASE_URL`
 - `RAG_API_KEY`
 
-`DEPLOYMENT_MODE` controls the runtime behavior:
+## Deployment Mode
 
-- `beta` → proxy-only mode
-- `mvp` → authenticated + persistence-enabled mode
+```
+DEPLOYMENT_MODE=beta
+```
+
+or
+
+```
+DEPLOYMENT_MODE=mvp
+```
+
+---
+
+# How Mode Switching Works
+
+The service dynamically enables/disables features based on `DEPLOYMENT_MODE`:
+
+| Feature            | Beta | MVP |
+|-------------------|------|-----|
+| /api/analyze      | ✅   | ✅  |
+| Authentication    | ❌   | ✅  |
+| Database          | ❌   | ✅  |
+| /history          | ❌   | ✅  |
+| /trends           | ❌   | ✅  |
 
 ---
 
 # Local Development
 
-Run the service locally using Docker:
+Run with Docker:
 
-```bash
+```
 docker compose up --build
 ```
 
-After startup the service will be available at:
+Service will be available at:
 
-`http://localhost:8000`
+```
+http://localhost:8000
+```
 
-Swagger API documentation:
+Swagger:
 
-`http://localhost:8000/docs`
+```
+http://localhost:8000/docs
+```
+
+---
+
+# Testing
+
+## Test Beta flow
+
+1. Set:
+
+```
+DEPLOYMENT_MODE=beta
+```
+
+2. Call:
+
+```
+POST /api/analyze
+```
+
+---
+
+## Test MVP flow
+
+1. Set:
+
+```
+DEPLOYMENT_MODE=mvp
+```
+
+2. Generate token:
+
+```
+POST /auth/dev-token
+```
+
+3. Call:
+
+```
+GET /api/me
+POST /scans
+GET /history
+GET /trends
+```
 
 ---
 
 # Example Analyze Request
 
-Example payload sent to `/api/analyze`:
-
-```json
+```
 {
   "ph_value": 4.5,
   "age": 30,
@@ -137,33 +209,14 @@ Example payload sent to `/api/analyze`:
 }
 ```
 
-The request will be forwarded to the configured RAG backend.
-
 ---
 
 # Repository Purpose
 
-This repository contains the FastAPI AI integration microservice used within the pHera platform architecture.
-
-The service is intentionally separated from the main backend so that it can be reused across multiple projects.
-
-Benefits of this approach:
-
-- reusable AI service layer
-- independent deployment
-- easier scaling
-- flexible architecture evolution
+Reusable AI integration layer for the pHera platform.
 
 ---
 
 # Status
 
-Current stage: MVP / Beta-ready development.
-
-Planned improvements:
-
-- improved request validation
-- logging and monitoring
-- rate limiting
-- improved authentication flow
-- production deployment configuration
+Current stage: **Beta + MVP ready**
