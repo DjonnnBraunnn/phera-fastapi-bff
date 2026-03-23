@@ -34,14 +34,17 @@ from . import models
 
 app = FastAPI(title="pHera Backend MVP")
 
-if CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[o.strip() for o in CORS_ORIGINS if o.strip()],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# Enable CORS for local frontend development and cross-origin BFF testing.
+# If CORS_ORIGINS is provided in .env, use it. Otherwise allow the local Vite frontend.
+allowed_origins = [o.strip() for o in CORS_ORIGINS if o.strip()] if CORS_ORIGINS else ["http://localhost:5173"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Always expose the minimal endpoints required for service availability
 # and proxy-based Beta integration.
