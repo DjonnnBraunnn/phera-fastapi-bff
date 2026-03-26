@@ -22,13 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import CORS_ORIGINS, DEPLOYMENT_MODE
 
 from .routers.health import router as health_router
-from .routers.auth_dev import router as auth_router
-from .routers.scans import router as scans_router
-from .routers.history import router as history_router
-from .routers.trends import router as trends_router
 from .routers.bff import router as bff_router
-
-from .deps import get_current_user
 
 app = FastAPI(title="pHera Backend MVP")
 
@@ -51,6 +45,11 @@ app.include_router(bff_router)
 if DEPLOYMENT_MODE == "mvp":
     from .database import Base, engine
     from . import models
+    from .deps import get_current_user
+    from .routers.auth_dev import router as auth_router
+    from .routers.scans import router as scans_router
+    from .routers.history import router as history_router
+    from .routers.trends import router as trends_router
 
     Base.metadata.create_all(bind=engine)
 
